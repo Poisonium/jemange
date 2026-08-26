@@ -1,0 +1,57 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct Matrix {
+    int size;      // matrices carrées size x size pour l'instant
+    int **value;
+} Matrix;
+
+// Alloue une matrice size x size (non initialisée)
+Matrix creer_matrice(int size) {
+    Matrix M;
+    M.size = size;
+    M.value = malloc(size * sizeof(int *));
+    for (int i = 0; i < size; i++) {
+        M.value[i] = malloc(size * sizeof(int));
+    }
+    return M;
+}
+
+//supprime une matrice
+void liberer_matrice(Matrix M) {
+    for (int i = 0; i < M.size; i++) {
+        free(M.value[i]);
+    }
+    free(M.value);
+}
+
+//affiche une matrice
+void afficher_matrice(Matrix M) {
+    for (int i = 0; i < M.size; i++) {
+        for (int j = 0; j < M.size; j++) {
+            printf("%d ", M.value[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+// Produit matriciel naïf 
+Matrix produit_naif(Matrix A, Matrix B) {
+    Matrix R = creer_matrice(A.size);
+
+    for (int i = 0; i < A.size; i++) {
+        for (int j = 0; j < B.size; j++) {
+            int somme = 0;
+            for (int k = 0; k < A.size; k++) {
+                somme += A.value[i][k] * B.value[k][j];
+            }
+            R.value[i][j] = somme;
+        }
+    }
+
+    return R;
+}
+
+int main(void) {
+  
+}
