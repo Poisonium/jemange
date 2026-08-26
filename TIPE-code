@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -17,7 +18,7 @@ Matrix creer_matrice(int size) {
     return M;
 }
 
-//supprime une matrice
+//libere une matrice ( la supprime)
 void liberer_matrice(Matrix M) {
     for (int i = 0; i < M.size; i++) {
         free(M.value[i]);
@@ -25,7 +26,7 @@ void liberer_matrice(Matrix M) {
     free(M.value);
 }
 
-//affiche une matrice
+//permet d'afficher une matrice()
 void afficher_matrice(Matrix M) {
     for (int i = 0; i < M.size; i++) {
         for (int j = 0; j < M.size; j++) {
@@ -52,6 +53,157 @@ Matrix produit_naif(Matrix A, Matrix B) {
     return R;
 }
 
+// Vérifie que size est une puissance de 2 (size > 0)
+int est_puissance_de_2(int size) {
+    if (size <= 0) return 0;
+    return (size & (size - 1)) == 0;
+}
+
+//additionne 2 matrices
+Matrix addition_matrice(Matrix A, Matrix B) {
+    Matrix R = creer_matrice(A.size);
+    for (int i = 0; i < A.size; i++) {
+        for (int j = 0; j < A.size; j++) {
+            R.value[i][j] = A.value[i][j] + B.value[i][j];
+        }
+    }
+    return R;
+}
+
+//soustrait 2 matrices
+Matrix soustraction_matrice(Matrix A, Matrix B) {
+    Matrix R = creer_matrice(A.size);
+    for (int i = 0; i < A.size; i++) {
+        for (int j = 0; j < A.size; j++) {
+            R.value[i][j] = A.value[i][j] - B.value[i][j];
+        }
+    }
+    return R;
+}
+
+// Découpe M (size x size) en 4 sous-matrices (size/2 x size/2)
+void decouper_matrice(Matrix M, Matrix *A11, Matrix *A12, Matrix *A21, Matrix *A22) {
+    int half = M.size / 2;
+    *A11 = creer_matrice(half);
+    *A12 = creer_matrice(half);
+    *A21 = creer_matrice(half);
+    *A22 = creer_matrice(half);
+
+    for (int i = 0; i < half; i++) {
+        for (int j = 0; j < half; j++) {
+            A11->value[i][j] = M.value[i][j];
+            A12->value[i][j] = M.value[i][j + half];
+            A21->value[i][j] = M.value[i + half][j];
+            A22->value[i][j] = M.value[i + half][j + half];
+        }
+    }
+}
+
+// Fusionne 4 sous-matrices (half x half) en une matrice (size x size)
+Matrix fusionner_matrice(Matrix A11, Matrix A12, Matrix A21, Matrix A22) {
+    int half = A11.size;
+    Matrix R = creer_matrice(half * 2);
+
+    for (int i = 0; i < half; i++) {
+        for (int j = 0; j < half; j++) {
+            R.value[i][j] = A11.value[i][j];
+            R.value[i][j + half] = A12.value[i][j];
+            R.value[i + half][j] = A21.value[i][j];
+            R.value[i + half][j + half] = A22.value[i][j];
+        }
+    }
+    return R;
+}
+
+// Produit matriciel par l'algorithme de Strassen.
+// Précondition : A.size == B.size et A.size est une puissance de 2.(on va le check avec : est_puissance_de_2 )
+Matrix produit_strassen(Matrix A, Matrix B) {
+    int n = A.size;
+
+    // Cas de base réel de la récursion : matrice 1x1, produit = simple
+    // multiplication. Le seuil optimal au-delà duquel il vaut mieux
+    // basculer sur le produit naïf reste à déterminer expérimentalement.
+    if (n == 1) {
+        Matrix R = creer_matrice(1);
+        R.value[0][0] = A.value[0][0] * B.value[0][0];
+        return R;
+    }
+
+    Matrix A11, A12, A21, A22;
+    Matrix B11, B12, B21, B22;
+    decouper_matrice(A, &A11, &A12, &A21, &A22);
+    decouper_matrice(B, &B11, &B12, &B21, &B22);
+
+    // Les 7 produits de Strassen
+    Matrix S1 = soustraction_matrice(B12, B22);
+    Matrix M1 = produit_strassen(A11, S1);
+
+    Matrix S2 = addition_matrice(A11, A12);
+    Matrix M2 = produit_strassen(S2, B22);
+
+    Matrix S3 = addition_matrice(A21, A22);
+    Matrix M3 = produit_strassen(S3, B11);
+
+    Matrix S4 = soustraction_matrice(B21, B11);
+    Matrix M4 = produit_strassen(A22, S4);
+
+    Matrix S5 = addition_matrice(A11, A22);
+    Matrix S6 = addition_matrice(B11, B22);
+    Matrix M5 = produit_strassen(S5, S6);
+
+    Matrix S7 = soustraction_matrice(A12, A22);
+    Matrix S8 = addition_matrice(B21, B22);
+    Matrix M6 = produit_strassen(S7, S8);
+
+    Matrix S9 = soustraction_matrice(A11, A21);
+    Matrix S10 = addition_matrice(B11, B12);
+    Matrix M7 = produit_strassen(S9, S10);
+
+    // Reconstruction des 4 blocs du résultat
+    Matrix T1 = addition_matrice(M5, M4);
+    Matrix T2 = soustraction_matrice(T1, M2);
+    Matrix C11 = addition_matrice(T2, M6);
+
+    Matrix C12 = addition_matrice(M1, M2);
+
+    Matrix C21 = addition_matrice(M3, M4);
+
+    Matrix T3 = addition_matrice(M5, M1);
+    Matrix T4 = soustraction_matrice(T3, M3);
+    Matrix C22 = soustraction_matrice(T4, M7);
+
+    Matrix R = fusionner_matrice(C11, C12, C21, C22);
+
+    // Libération de toutes les matrices intermédiaires
+    liberer_matrice(A11); liberer_matrice(A12); liberer_matrice(A21); liberer_matrice(A22);
+    liberer_matrice(B11); liberer_matrice(B12); liberer_matrice(B21); liberer_matrice(B22);
+    liberer_matrice(S1); liberer_matrice(S2); liberer_matrice(S3); liberer_matrice(S4);
+    liberer_matrice(S5); liberer_matrice(S6); liberer_matrice(S7); liberer_matrice(S8);
+    liberer_matrice(S9); liberer_matrice(S10);
+    liberer_matrice(M1); liberer_matrice(M2); liberer_matrice(M3); liberer_matrice(M4);
+    liberer_matrice(M5); liberer_matrice(M6); liberer_matrice(M7);
+    liberer_matrice(T1); liberer_matrice(T2); liberer_matrice(T3); liberer_matrice(T4);
+    liberer_matrice(C11); liberer_matrice(C12); liberer_matrice(C21); liberer_matrice(C22);
+
+    return R;
+}
+
+// Wrapper sûr : vérifie les préconditions avant d'appeler produit_strassen.
+// Retourne une matrice de size = -1 en cas d'erreur (à vérifier par l'appelant).
+Matrix strassen(Matrix A, Matrix B) {
+    if (A.size != B.size) {
+        fprintf(stderr, "Erreur : A.size (%d) != B.size (%d)\n", A.size, B.size);
+        Matrix erreur = { .size = -1, .value = NULL };
+        return erreur;
+    }
+    if (!est_puissance_de_2(A.size)) {
+        fprintf(stderr, "Erreur : la taille (%d) n'est pas une puissance de 2\n", A.size);
+        Matrix erreur = { .size = -1, .value = NULL };
+        return erreur;
+    }
+    return produit_strassen(A, B);
+}
+
 int main(void) {
-  
+    return 0;
 }
