@@ -7,6 +7,20 @@ typedef struct Matrix {
     int **value;
 } Matrix;
 
+// Seuil en dessous duquel Strassen bascule sur le produit naif.
+// Valeur par defaut = 1 (recursion jusqu'au bout). Modifiable via
+// definir_seuil_strassen() pour experimenter et trouver la valeur optimale.
+static int SEUIL_STRASSEN = 1;
+
+void definir_seuil_strassen(int seuil) {
+    if (seuil < 1) seuil = 1;
+    SEUIL_STRASSEN = seuil;
+}
+
+int obtenir_seuil_strassen(void) {
+    return SEUIL_STRASSEN;
+}
+
 // Alloue une matrice size x size (non initialisée)
 Matrix creer_matrice(int size) {
     Matrix M;
@@ -116,13 +130,11 @@ Matrix fusionner_matrice(Matrix A11, Matrix A12, Matrix A21, Matrix A22) {
 Matrix produit_strassen(Matrix A, Matrix B) {
     int n = A.size;
 
-    // Cas de base réel de la récursion : matrice 1x1, produit = simple
-    // multiplication. Le seuil optimal au-delà duquel il vaut mieux
-    // basculer sur le produit naïf reste à déterminer expérimentalement.
-    if (n == 1) {
-        Matrix R = creer_matrice(1);
-        R.value[0][0] = A.value[0][0] * B.value[0][0];
-        return R;
+    // Cas de base : en dessous du seuil, on bascule sur le produit naif
+    // (evite l'avalanche d'allocations memoire pour les petites matrices).
+    // Le seuil optimal se determine experimentalement via definir_seuil_strassen().
+    if (n <= SEUIL_STRASSEN) {
+        return produit_naif(A, B);
     }
 
     Matrix A11, A12, A21, A22;
@@ -211,6 +223,7 @@ void remplir_aleatoire(Matrix M) {
 
 int main(void) {
     int size;
+    int seuil;
 
     printf("Taille des matrices (doit etre une puissance de 2) : ");
     if (scanf("%d", &size) != 1) {
@@ -222,6 +235,13 @@ int main(void) {
         fprintf(stderr, "Erreur : %d n'est pas une puissance de 2.\n", size);
         return 1;
     }
+
+    printf("Seuil de bascule vers le produit naif (1 = recursion complete) : ");
+    if (scanf("%d", &seuil) != 1) {
+        fprintf(stderr, "Erreur de lecture.\n");
+        return 1;
+    }
+    definir_seuil_strassen(seuil);
 
     srand((unsigned int)time(NULL));
 
@@ -250,7 +270,7 @@ int main(void) {
     if (f == NULL) {
         fprintf(stderr, "Impossible d'ouvrir resultats.txt\n");
     } else {
-        fprintf(f, "taille=%d naif=%f strassen=%f\n", size, temps_naif, temps_strassen);
+        fprintf(f, "taille=%d seuil=%d naif=%f strassen=%f\n", size, seuil, temps_naif, temps_strassen);
         fclose(f);
     }
 
