@@ -1,6 +1,6 @@
-
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 typedef struct Matrix {
     int size;      // matrices carrées size x size pour l'instant
@@ -18,7 +18,6 @@ Matrix creer_matrice(int size) {
     return M;
 }
 
-//libere une matrice ( la supprime)
 void liberer_matrice(Matrix M) {
     for (int i = 0; i < M.size; i++) {
         free(M.value[i]);
@@ -26,7 +25,6 @@ void liberer_matrice(Matrix M) {
     free(M.value);
 }
 
-//permet d'afficher une matrice()
 void afficher_matrice(Matrix M) {
     for (int i = 0; i < M.size; i++) {
         for (int j = 0; j < M.size; j++) {
@@ -36,7 +34,7 @@ void afficher_matrice(Matrix M) {
     }
 }
 
-// Produit matriciel naïf 
+// Produit matriciel naïf : O(n^3)
 Matrix produit_naif(Matrix A, Matrix B) {
     Matrix R = creer_matrice(A.size);
 
@@ -59,7 +57,6 @@ int est_puissance_de_2(int size) {
     return (size & (size - 1)) == 0;
 }
 
-//additionne 2 matrices
 Matrix addition_matrice(Matrix A, Matrix B) {
     Matrix R = creer_matrice(A.size);
     for (int i = 0; i < A.size; i++) {
@@ -70,7 +67,6 @@ Matrix addition_matrice(Matrix A, Matrix B) {
     return R;
 }
 
-//soustrait 2 matrices
 Matrix soustraction_matrice(Matrix A, Matrix B) {
     Matrix R = creer_matrice(A.size);
     for (int i = 0; i < A.size; i++) {
@@ -116,7 +112,7 @@ Matrix fusionner_matrice(Matrix A11, Matrix A12, Matrix A21, Matrix A22) {
 }
 
 // Produit matriciel par l'algorithme de Strassen.
-// Précondition : A.size == B.size et A.size est une puissance de 2.(on va le check avec : est_puissance_de_2 )
+// Précondition : A.size == B.size et A.size est une puissance de 2.
 Matrix produit_strassen(Matrix A, Matrix B) {
     int n = A.size;
 
@@ -204,6 +200,64 @@ Matrix strassen(Matrix A, Matrix B) {
     return produit_strassen(A, B);
 }
 
+// Remplit une matrice avec des valeurs aléatoires entre 0 et 9
+void remplir_aleatoire(Matrix M) {
+    for (int i = 0; i < M.size; i++) {
+        for (int j = 0; j < M.size; j++) {
+            M.value[i][j] = rand() % 10;
+        }
+    }
+}
+
 int main(void) {
+    int size;
+
+    printf("Taille des matrices (doit etre une puissance de 2) : ");
+    if (scanf("%d", &size) != 1) {
+        fprintf(stderr, "Erreur de lecture.\n");
+        return 1;
+    }
+
+    if (!est_puissance_de_2(size)) {
+        fprintf(stderr, "Erreur : %d n'est pas une puissance de 2.\n", size);
+        return 1;
+    }
+
+    srand((unsigned int)time(NULL));
+
+    Matrix A = creer_matrice(size);
+    Matrix B = creer_matrice(size);
+    remplir_aleatoire(A);
+    remplir_aleatoire(B);
+
+    // --- Chronometrage produit naif ---
+    clock_t debut_naif = clock();
+    Matrix R_naif = produit_naif(A, B);
+    clock_t fin_naif = clock();
+    double temps_naif = (double)(fin_naif - debut_naif) / CLOCKS_PER_SEC;
+
+    // --- Chronometrage Strassen ---
+    clock_t debut_strassen = clock();
+    Matrix R_strassen = strassen(A, B);
+    clock_t fin_strassen = clock();
+    double temps_strassen = (double)(fin_strassen - debut_strassen) / CLOCKS_PER_SEC;
+
+    printf("Produit naif    : %f s\n", temps_naif);
+    printf("Produit Strassen: %f s\n", temps_strassen);
+
+    // --- Enregistrement dans un fichier texte ---
+    FILE *f = fopen("resultats.txt", "a");
+    if (f == NULL) {
+        fprintf(stderr, "Impossible d'ouvrir resultats.txt\n");
+    } else {
+        fprintf(f, "taille=%d naif=%f strassen=%f\n", size, temps_naif, temps_strassen);
+        fclose(f);
+    }
+
+    liberer_matrice(A);
+    liberer_matrice(B);
+    liberer_matrice(R_naif);
+    liberer_matrice(R_strassen);
+
     return 0;
 }
