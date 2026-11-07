@@ -8,8 +8,7 @@ typedef struct Matrix {
 } Matrix;
 
 // Seuil en dessous duquel Strassen bascule sur le produit naif.
-// Valeur par defaut = 1 (recursion jusqu'au bout). Modifiable via
-// definir_seuil_strassen() pour experimenter et trouver la valeur optimale.
+// Valeur par defaut = 1 (recursion jusqu'au bout). Modifiable via definir_seuil_strassen() pour experimenter et trouver la valeur optimale.
 static int SEUIL_STRASSEN = 1;
 
 void definir_seuil_strassen(int seuil) {
